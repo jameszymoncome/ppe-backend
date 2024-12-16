@@ -193,6 +193,20 @@ app.delete("/ppe-entry/:id", (req, res) => {
   });
 });
 
+// Fetch all accounts
+app.get("/accounts", (req, res) => {
+  const sql = "SELECT id, lastname, firstname, middlename, role, department FROM users";
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching accounts:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+    res.json({ success: true, data: results });
+  });
+});
+
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
