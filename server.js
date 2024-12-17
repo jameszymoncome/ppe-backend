@@ -53,9 +53,29 @@ app.post("/login", (req, res) => {
         return res.status(401).json({ success: false, message: "Invalid username or password" });
       }
 
-      // Generate JWT token
-      const token = jwt.sign({ id: user.id }, "your_jwt_secret", { expiresIn: "1h" });
-      return res.json({ success: true, token });
+      // Generate JWT token with user role
+      const token = jwt.sign({ id: user.id, role: user.role }, "your_jwt_secret", { expiresIn: "1h" });
+      
+      // Return response based on user role
+      let accessLevel;
+      switch (user.role) {
+        case 'ADMIN':
+          accessLevel = 'Full Access';
+          break;
+        case 'ENCODER':
+          accessLevel = 'Limited Access';
+          break;
+        case 'USER(VIEWING ONLY)':
+          accessLevel = 'View Only';
+          break;
+        case 'Head':
+          accessLevel = 'Full Access';
+          break;  
+        default:
+          accessLevel = 'No Access';
+      }
+
+      return res.json({ success: true, token, accessLevel });
     } catch (bcryptError) {
       console.error("Error verifying password:", bcryptError);
       return res.status(500).json({ success: false, message: "Server error" });
