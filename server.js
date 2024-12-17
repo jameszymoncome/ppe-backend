@@ -54,28 +54,16 @@ app.post("/login", (req, res) => {
       }
 
       // Generate JWT token with user role
-      const token = jwt.sign({ id: user.id, role: user.role }, "your_jwt_secret", { expiresIn: "1h" });
+      const token = jwt.sign({ id: user.user_id, role: user.role }, "your_jwt_secret", { expiresIn: "1h" });
       
-      // Return response based on user role
-      let accessLevel;
-      switch (user.role) {
-        case 'ADMIN':
-          accessLevel = 'Full Access';
-          break;
-        case 'ENCODER':
-          accessLevel = 'Limited Access';
-          break;
-        case 'USER(VIEWING ONLY)':
-          accessLevel = 'View Only';
-          break;
-        case 'Head':
-          accessLevel = 'Full Access';
-          break;  
-        default:
-          accessLevel = 'No Access';
-      }
-
-      return res.json({ success: true, token, accessLevel });
+      // Send back token, user's first name, and user ID
+      return res.json({
+        success: true,
+        token,
+        firstName: user.firstname,
+        accessLevel: user.role === 'ADMIN' ? 'Full Access' : (user.role === 'ENCODER' ? 'Limited Access' : 'View Only'),
+        userId: user.user_id // Include user ID in the response
+      });
     } catch (bcryptError) {
       console.error("Error verifying password:", bcryptError);
       return res.status(500).json({ success: false, message: "Server error" });
@@ -225,6 +213,92 @@ app.get("/accounts", (req, res) => {
     res.json({ success: true, data: results });
   });
 });
+
+// Fetch logged-in user details
+app.get("/user/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = `
+    SELECT lastname, firstname, middlename, suffix, email, contactNumber, username, role, department
+    FROM users WHERE id = ?
+  `;
+
+  db.query(sql, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching user details:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    res.json({ success: true, data: results[0] });
+  });
+});
+
+// Fetch user profile data
+app.get("/profile/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = `
+    SELECT lastname, firstname, middlename, suffix, email, contactNumber, username, role, department
+    FROM users WHERE user_id = ?
+  `;
+  
+  db.query(sql, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching profile data:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    res.json({ success: true, data: results[0] });
+  });
+});
+
+// Update user profile
+app.put("/profile/:id", (req, res) => {
+  const { id } = req.params;
+  const { lastname, firstname, middlename, suffix, email, contactNumber, username, department } = req.body;
+
+  const updateSQL = `
+    UPDATE users
+    SET lastname = ?, firstname = ?, middlename = ?, suffix = ?, email = ?, contactNumber = ?, username = ?, department = ?
+    WHERE user_id = ?
+  `;
+  
+  const values = [lastname, firstname, middlename, suffix, email, contactNumber, username, department, id];
+
+  db.query(updateSQL, values, (err) => {
+    if (err) {
+      console.error("Error updating profile:", err);
+      return res.status(500).json({ success: false, message: "Error updating profile." });
+    }
+
+    res.json({ success: true, message: "Profile updated successfully" });
+  });
+});
+
+// Delete user profile
+app.delete("/profile/:id", (req, res) => {
+  const { id } = req.params;
+
+  const deleteSQL = "DELETE FROM users WHERE user_id = ?";
+  
+  db.query(deleteSQL, [id], (err) => {
+    if (err) {
+      console.error("Error deleting profile:", err);
+      return res.status(500).json({ success: false, message: "Error deleting profile." });
+    }
+
+    res.json({ success: true, message: "Profile deleted successfully" });
+  });
+});
+
 
 
 // Start the server
