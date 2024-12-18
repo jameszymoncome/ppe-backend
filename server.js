@@ -128,6 +128,7 @@ app.post("/ppe-entries", (req, res) => {
   const values = entries.map(entry => [
     entry.entityName,
     entry.fundCluster,
+    entry.department,
     entry.description,
     entry.dateAcquired,
     entry.quantity,
@@ -186,8 +187,8 @@ app.post("/ppe-entries", (req, res) => {
 
             let parNo = `par${parRowCount} ${currentYear}-${currentMonth}`;
 
-            const insertITEM = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, description, dateAcquired, quantity, unit, unitCost, totalCost) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const insertITEM = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
               
             const valuesToInsertITEM = [
               parNo,
@@ -199,6 +200,7 @@ app.post("/ppe-entries", (req, res) => {
               row[5],
               row[6],
               row[7],
+              row[8],
               123
             ];
 
@@ -274,8 +276,8 @@ app.post("/ppe-entries", (req, res) => {
 
             let icsNo = `ics${icsRowCount} ${currentYear}-${currentMonth}`;
 
-            const insertITEMs = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, description, dateAcquired, quantity, unit, unitCost, totalCost) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const insertITEMs = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
               
             const valuesToInsertITEMs = [
               icsNo,
@@ -287,6 +289,7 @@ app.post("/ppe-entries", (req, res) => {
               row[5],
               row[6],
               row[7],
+              row[8],
               123
             ];
 
@@ -398,7 +401,7 @@ app.delete("/ppe-entry/:id", (req, res) => {
 
 // Fetch all accounts
 app.get("/accounts", (req, res) => {
-  const sql = "SELECT id, lastname, firstname, middlename, role, department FROM users";
+  const sql = "SELECT user_id, lastname, firstname, middlename, role, department FROM users";
 
   db.query(sql, (err, results) => {
     if (err) {
@@ -415,7 +418,7 @@ app.get("/user/:id", (req, res) => {
 
   const sql = `
     SELECT lastname, firstname, middlename, suffix, email, contactNumber, username, role, department
-    FROM users WHERE id = ?
+    FROM users WHERE user_id = ?
   `;
 
   db.query(sql, [id], (err, results) => {
@@ -491,6 +494,57 @@ app.delete("/profile/:id", (req, res) => {
     }
 
     res.json({ success: true, message: "Profile deleted successfully" });
+  });
+});
+
+// Fetching item
+app.get("/items", (req, res) => {
+  const query = "SELECT item_id, form_id, entityName, fundCluster, DATE_FORMAT(date, '%Y-%m-%d') AS date  FROM ppe_entries";
+
+  // Execute the query to fetch data
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching data:", err);
+      return res.status(500).json({ error: "Failed to fetch data from database" });
+    }
+    res.json(results); // Send the results as JSON response
+  });
+});
+
+app.get("/getItem/:id", (req, res) => {
+  const itemId = req.params.id;
+  
+  // SQL Query to fetch data with a grouped range
+  const query = `
+    SELECT 
+      ppe_entries.quantity,
+      ppe_entries.unit,
+      ppe_entries.description,
+      CONCAT(
+        MIN(COALESCE(ics.inventory_id, par.property_id)), 
+        ' to ', 
+        MAX(COALESCE(ics.inventory_id, par.property_id))
+      ) AS procsid_range,
+      DATE_FORMAT(ppe_entries.dateAcquired, '%Y-%m-%d') AS dateAcquired,
+      ppe_entries.unitCost,
+      ppe_entries.totalCost
+    FROM 
+      ppe_entries
+    LEFT JOIN 
+      ics ON ppe_entries.item_id = ics.item_id
+    LEFT JOIN 
+      par ON ppe_entries.item_id = par.item_id
+    WHERE 
+      ppe_entries.item_id = ?
+  `;
+
+  // Execute the query
+  db.query(query, [itemId], (err, results) => {
+    if (err) {
+      console.error("Error fetching data:", err);
+      return res.status(500).json({ error: "Failed to fetch data from database" });
+    }
+    res.json(results); // Send the results as a JSON response
   });
 });
 
