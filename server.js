@@ -125,11 +125,6 @@ app.post("/ppe-entries", (req, res) => {
     return res.status(400).json({ success: false, message: "No entries provided." });
   }
 
-  const insertSQL = `
-    INSERT INTO ppe_entries (entityName, fundCluster, description, dateAcquired, quantity, unit, unitCost, totalCost)
-    VALUES ?
-  `;
-
   const values = entries.map(entry => [
     entry.entityName,
     entry.fundCluster,
@@ -141,13 +136,213 @@ app.post("/ppe-entries", (req, res) => {
     entry.totalCost
   ]);
 
-  db.query(insertSQL, [values], (err) => {
-    if (err) {
-      console.error("Error inserting PPE entries:", err);
-      return res.status(500).json({ success: false, message: "Error saving entries." });
+  let parRowCount = 0;
+  let propertyRowCount = 0;
+  let completedInserts = 0;
+  let totalInserts = 0;
+
+  let icsRowCount = 0;
+  let inventoryRowCount = 0;
+  let icscompletedInserts = 0;
+  let icstotalInserts = 0;
+
+  let itemRows = 0;
+
+  const item_id = `SELECT COUNT(*) AS itemRow FROM ppe_entries`;
+  db.query(item_id, (countErr, countResultss) => {
+    if (countErr) {
+      console.error("Error counting rows:", countErr);
+      return res.status(500).json({ success: false, message: "Error retrieving row count." });
     }
-    res.json({ success: true, message: "Entries saved successfully!" });
-  });
+
+    itemRows = countResultss[0].itemRow;
+
+    values.forEach(row => {
+      if (row[6] > 49999) { // Check if totalCost > 49999
+        const propertyCount = `SELECT COUNT(*) AS propCount FROM par`;
+
+        db.query(propertyCount, (countErr, countResults) => {
+          if (countErr) {
+            console.error("Error counting rows:", countErr);
+            return res.status(500).json({ success: false, message: "Error retrieving row count." });
+          }
+
+          propertyRowCount = countResults[0].propCount;
+
+          const countSQL = `SELECT COUNT(DISTINCT PAR_id) AS parCount FROM par`;
+          db.query(countSQL, (countErr, countResult) => {
+            if (countErr) {
+              console.error("Error counting rows:", countErr);
+              return res.status(500).json({ success: false, message: "Error retrieving row count." });
+            }
+
+            parRowCount = countResult[0].parCount + 1;
+
+            totalInserts += row[4];
+
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
+            let parNo = `par${parRowCount} ${currentYear}-${currentMonth}`;
+
+            const insertITEM = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, description, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+              
+            const valuesToInsertITEM = [
+              parNo,
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              123
+            ];
+
+            db.query(insertITEM, valuesToInsertITEM, (insertErr) => {
+              if (insertErr) {
+                console.error("Error inserting into PAR table:", insertErr);
+                return res.status(500).json({ success: false, message: "Error saving entries." });
+              }
+            })
+
+            itemRows++;
+            console.log(itemRows);
+
+            for (let i = 0; i < row[4]; i++) {
+              propertyRowCount++;
+
+              let propertyNo = `par${parRowCount} ${currentYear}-${currentMonth} ${propertyRowCount}`;
+
+              const insertPAR = `
+                INSERT INTO par (property_id, PAR_id, item_id, enduser_id)
+                VALUES (?, ?, ?, ?)
+              `;
+
+              const valuesToInsertPAR = [
+                propertyNo,
+                parNo,
+                itemRows,
+                123
+              ];
+
+              db.query(insertPAR, valuesToInsertPAR, (insertErr) => {
+                if (insertErr) {
+                  console.error("Error inserting into PAR table:", insertErr);
+                  return res.status(500).json({ success: false, message: "Error saving entries." });
+                }
+
+                completedInserts++; // Increment completed insertions
+
+                // Send the response only after all insertions are done
+                if (completedInserts === totalInserts) {
+                  res.json({ success: true, message: "Entries saved successfully!" });
+                }
+              });
+            }
+          });
+        });
+      }
+      else{
+        const inventoryCount = `SELECT COUNT(*) AS invenCount FROM ics`;
+
+        db.query(inventoryCount, (countErr, countResults) => {
+          if (countErr) {
+            console.error("Error counting rows:", countErr);
+            return res.status(500).json({ success: false, message: "Error retrieving row count." });
+          }
+
+          inventoryRowCount = countResults[0].invenCount;
+
+          const countSQL = `SELECT COUNT(DISTINCT ICS_id) AS icsCount FROM ics`;
+          db.query(countSQL, (countErr, countResult) => {
+            if (countErr) {
+              console.error("Error counting rows:", countErr);
+              return res.status(500).json({ success: false, message: "Error retrieving row count." });
+            }
+
+            icsRowCount = countResult[0].icsCount + 1;
+
+            icstotalInserts += row[4];
+
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
+            let icsNo = `ics${icsRowCount} ${currentYear}-${currentMonth}`;
+
+            const insertITEMs = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, description, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+              
+            const valuesToInsertITEMs = [
+              icsNo,
+              row[0],
+              row[1],
+              row[2],
+              row[3],
+              row[4],
+              row[5],
+              row[6],
+              row[7],
+              123
+            ];
+
+            db.query(insertITEMs, valuesToInsertITEMs, (insertErr) => {
+              if (insertErr) {
+                console.error("Error inserting into PAR table:", insertErr);
+                return res.status(500).json({ success: false, message: "Error saving entries." });
+              }
+            })
+
+            itemRows++;
+            console.log(itemRows);
+
+            for (let i = 0; i < row[4]; i++) {
+              
+              inventoryRowCount++;
+
+              let inventoryNo = `ics${icsRowCount} ${currentYear}-${currentMonth} ${inventoryRowCount}`;
+
+              const insertICS = `
+                INSERT INTO ics (inventory_id, ICS_id, item_id, enduser_id)
+                VALUES (?, ?, ?, ?)
+              `;
+
+              const valuesToInsertICS = [
+                inventoryNo,
+                icsNo,
+                itemRows,
+                123
+              ];
+
+              db.query(insertICS, valuesToInsertICS, (insertErr) => {
+                if (insertErr) {
+                  console.error("Error inserting into PAR table:", insertErr);
+                  return res.status(500).json({ success: false, message: "Error saving entries." });
+                }
+
+                icscompletedInserts++; // Increment completed insertions
+
+                // Send the response only after all insertions are done
+                if (icscompletedInserts === icstotalInserts) {
+                  res.json({ success: true, message: "Entries saved successfully!" });
+                }
+              });
+            }
+          });
+        });
+      }
+    });
+
+    // Handle the case where no rows meet the condition
+    if (icstotalInserts === 0 || totalInserts === 0) {
+      res.json({ success: true, message: "Entries saved successfully!" });
+    }
+  })
+
 });
 
 // Get all PPE entries
