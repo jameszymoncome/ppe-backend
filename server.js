@@ -519,11 +519,19 @@ app.get("/getItem/:id", (req, res) => {
       ppe_entries.quantity,
       ppe_entries.unit,
       ppe_entries.description,
-      CONCAT(
-        MIN(COALESCE(ics.inventory_id, par.property_id)), 
-        ' to ', 
-        MAX(COALESCE(ics.inventory_id, par.property_id))
-      ) AS procsid,
+      CASE
+        WHEN COALESCE(MIN(ics.inventory_id), 0) = COALESCE(MAX(ics.inventory_id), 0) AND 
+            COALESCE(MIN(par.property_id), 0) = COALESCE(MAX(par.property_id), 0) THEN 
+          CONCAT(
+            COALESCE(MIN(ics.inventory_id), COALESCE(MIN(par.property_id), ''))
+          )
+        ELSE 
+          CONCAT(
+            COALESCE(MIN(ics.inventory_id), COALESCE(MIN(par.property_id), '')), 
+            ' to ', 
+            COALESCE(MAX(ics.inventory_id), COALESCE(MAX(par.property_id), ''))
+          )
+      END AS procsid,
       DATE_FORMAT(ppe_entries.dateAcquired, '%Y-%m-%d') AS dateAcquired,
       ppe_entries.unitCost,
       ppe_entries.totalCost
