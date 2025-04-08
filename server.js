@@ -159,7 +159,7 @@ app.post("/ppe-entries", (req, res) => {
     itemRows = countResultss[0].itemRow;
 
     values.forEach(row => {
-      if (row[6] > 49999) { // Check if totalCost > 49999
+      if (row[7] > 49999) { // Check if totalCost > 49999
         const propertyCount = `SELECT COUNT(*) AS propCount FROM par`;
 
         db.query(propertyCount, (countErr, countResults) => {
@@ -214,7 +214,7 @@ app.post("/ppe-entries", (req, res) => {
             itemRows++;
             console.log(itemRows);
 
-            for (let i = 0; i < row[4]; i++) {
+            for (let i = 0; i < row[5]; i++) {
               propertyRowCount++;
 
               let propertyNo = `par${parRowCount} ${currentYear}-${currentMonth} ${propertyRowCount}`;
@@ -302,7 +302,7 @@ app.post("/ppe-entries", (req, res) => {
             itemRows++;
             console.log(itemRows);
 
-            for (let i = 0; i < row[4]; i++) {
+            for (let i = 0; i < row[5]; i++) {
               
               inventoryRowCount++;
 
