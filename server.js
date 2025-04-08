@@ -289,8 +289,7 @@ app.post("/ppe-entries", (req, res) => {
               row[5],
               row[6],
               row[7],
-              row[8],
-              123
+              row[8]
             ];
 
             db.query(insertITEMs, valuesToInsertITEMs, (insertErr) => {
@@ -323,7 +322,7 @@ app.post("/ppe-entries", (req, res) => {
 
               db.query(insertICS, valuesToInsertICS, (insertErr) => {
                 if (insertErr) {
-                  console.error("Error inserting into PAR table:", insertErr);
+                  console.error("Error inserting into ICS table:", insertErr);
                   return res.status(500).json({ success: false, message: "Error saving entries." });
                 }
 
@@ -499,7 +498,7 @@ app.delete("/profile/:id", (req, res) => {
 
 // Fetching item
 app.get("/items", (req, res) => {
-  const query = "SELECT item_id, form_id, entityName, fundCluster, DATE_FORMAT(date, '%Y-%m-%d') AS date  FROM ppe_entries";
+  const query = "SELECT item_id, form_id, entityName, fundCluster, DATE_FORMAT(date, '%Y-%m-%d') AS date  FROM ppe_entries GROUP BY form_id";
 
   // Execute the query to fetch data
   db.query(query, (err, results) => {
