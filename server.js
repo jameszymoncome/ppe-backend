@@ -516,25 +516,22 @@ app.get("/getItem/:id", (req, res) => {
   // SQL Query to fetch data with a grouped range
   const query = `
     SELECT 
-      ppe_entries.quantity,
-      ppe_entries.unit,
-      ppe_entries.description,
-      CONCAT(
-        MIN(COALESCE(ics.inventory_id, par.property_id)), 
-        ' to ', 
-        MAX(COALESCE(ics.inventory_id, par.property_id))
-      ) AS procsid_range,
-      DATE_FORMAT(ppe_entries.dateAcquired, '%Y-%m-%d') AS dateAcquired,
-      ppe_entries.unitCost,
-      ppe_entries.totalCost
-    FROM 
-      ppe_entries
-    LEFT JOIN 
-      ics ON ppe_entries.item_id = ics.item_id
-    LEFT JOIN 
-      par ON ppe_entries.item_id = par.item_id
-    WHERE 
-      ppe_entries.item_id = ?
+  ppe_entries.quantity,
+  ppe_entries.unit,
+  ppe_entries.description,
+  COALESCE(ics.inventory_id, par.property_id) AS procsid,
+  DATE_FORMAT(ppe_entries.dateAcquired, '%Y-%m-%d') AS dateAcquired,
+  ppe_entries.unitCost,
+  ppe_entries.totalCost
+FROM 
+  ppe_entries
+LEFT JOIN 
+  ics ON ppe_entries.item_id = ics.inventory_id
+LEFT JOIN 
+  par ON ppe_entries.item_id = par.property_id
+WHERE 
+  ppe_entries.form_id = ?
+
   `;
 
   // Execute the query
