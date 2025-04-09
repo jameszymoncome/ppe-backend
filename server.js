@@ -130,6 +130,7 @@ app.post("/ppe-entries", (req, res) => {
     entry.fundCluster,
     entry.department,
     entry.description,
+    entry.receiver,
     entry.dateAcquired,
     entry.quantity,
     entry.unit,
@@ -159,7 +160,7 @@ app.post("/ppe-entries", (req, res) => {
     itemRows = countResultss[0].itemRow;
 
     values.forEach(row => {
-      if (row[7] > 49999) { // Check if totalCost > 49999
+      if (row[8] > 49999) { // Check if totalCost > 49999
         const propertyCount = `SELECT COUNT(*) AS propCount FROM par`;
 
         db.query(propertyCount, (countErr, countResults) => {
@@ -187,8 +188,8 @@ app.post("/ppe-entries", (req, res) => {
 
             let parNo = `par${parRowCount} ${currentYear}-${currentMonth}`;
 
-            const insertITEM = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, dateAcquired, quantity, unit, unitCost, totalCost) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const insertITEM = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, receiver_name, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
               
             const valuesToInsertITEM = [
               parNo,
@@ -201,6 +202,7 @@ app.post("/ppe-entries", (req, res) => {
               row[6],
               row[7],
               row[8],
+              row[9],
               123
             ];
 
@@ -276,8 +278,8 @@ app.post("/ppe-entries", (req, res) => {
 
             let icsNo = `ics${icsRowCount} ${currentYear}-${currentMonth}`;
 
-            const insertITEMs = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, dateAcquired, quantity, unit, unitCost, totalCost) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const insertITEMs = `INSERT INTO ppe_entries (form_id, entityName, fundCluster, department, description, receiver_name, dateAcquired, quantity, unit, unitCost, totalCost) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
               
             const valuesToInsertITEMs = [
               icsNo,
@@ -289,7 +291,8 @@ app.post("/ppe-entries", (req, res) => {
               row[5],
               row[6],
               row[7],
-              row[8]
+              row[8],
+              row[9]
             ];
 
             db.query(insertITEMs, valuesToInsertITEMs, (insertErr) => {
