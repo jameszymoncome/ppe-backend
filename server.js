@@ -117,6 +117,34 @@ app.post("/create-account", async (req, res) => {
   });
 });
 
+// API Endpoint to Fetch Users by Role
+app.get("/users", (req, res) => {
+  const roles = req.query.role ? req.query.role.split(",") : [];
+  const search = req.query.search || "";
+  const department = req.query.department || "";
+
+  if (roles.length === 0) {
+    return res.status(400).json({ error: "Invalid roles parameter" });
+  }
+
+  const query = `
+    SELECT user_id, CONCAT(lastname, ', ', firstname, ' ', middlename) AS full_name, department
+    FROM users
+    WHERE role IN (?) 
+    AND CONCAT(lastname, ' ', firstname, ' ', middlename) LIKE ?
+    ${department ? "AND department = ?" : ""};
+  `;
+  const params = [roles, `%${search}%`];
+  if (department) params.push(department);
+
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching users:", err);
+      return res.status(500).json({ error: "Failed to fetch users" });
+    }
+    res.json(results);
+  });
+});
 // Save multiple PPE entries
 app.post("/ppe-entries", (req, res) => {
   const entries = req.body; // Expecting an array of entries
