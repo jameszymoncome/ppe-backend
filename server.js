@@ -434,6 +434,38 @@ app.get("/item-scanned/:id", (req, res) => {
   });
 });
 
+// Get item search
+app.get("/item-search/:proInvenID", (req, res) => {
+  const { proInvenID } = req.params;
+  console.log(proInvenID);
+
+  const sqls = `
+    SELECT enduser_id FROM ics WHERE inventory_id = ?
+  `;
+
+  db.query(sqls, [proInvenID], (err, results) => {
+    if (err) {
+      console.error("Error fetching PPE entry:", err);
+      return res.status(500).json({ success: false, message: "Database error." });
+    }
+
+    if (results.length === 0) {
+      return res.json({ success: false, message: "No PPE entry found." });
+      console.log("No PPE entry found.");
+    }
+
+    else{
+      // Safely construct the response
+      res.json({
+        success: true,
+        data: {
+          enduser_id: results[0].enduser_id
+        },
+      });
+    }
+  });
+});
+
 // Update a PPE entry
 app.put("/ppe-entry/:id", (req, res) => {
   const { id } = req.params;
@@ -644,8 +676,6 @@ app.get("/getItem/:id", (req, res) => {
     res.json(results); // Send the results as a JSON response
   });
 });
-
-
 
 // Start the server
 app.listen(PORT, () => {
