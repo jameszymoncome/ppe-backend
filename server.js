@@ -61,7 +61,7 @@ app.post("/login", (req, res) => {
         success: true,
         token,
         firstName: user.firstname,
-        accessLevel: user.role === 'ADMIN' ? 'Full Access' : (user.role === 'ENCODER' ? 'Limited Access' : 'View Only'),
+        accessLevel: user.role === 'ADMIN' ? 'ADMIN' : (user.role === 'ENCODER' ? 'ENCODER' : 'View Only'),
         userId: user.user_id // Include user ID in the response
       });
     } catch (bcryptError) {
@@ -244,7 +244,7 @@ app.post("/ppe-entries", (req, res) => {
             itemRows++;
             console.log(itemRows);
 
-            for (let i = 0; i < row[5]; i++) {
+            for (let i = 0; i < row[6]; i++) {
               propertyRowCount++;
 
               let propertyNo = `par${parRowCount} ${currentYear}-${currentMonth} ${propertyRowCount}`;
@@ -333,7 +333,7 @@ app.post("/ppe-entries", (req, res) => {
             itemRows++;
             console.log(itemRows);
 
-            for (let i = 0; i < row[5]; i++) {
+            for (let i = 0; i < row[6]; i++) {
               
               inventoryRowCount++;
 
@@ -388,6 +388,49 @@ app.get("/ppe-entries", (req, res) => {
       return res.status(500).json({ success: false, message: "Database error" });
     }
     res.json({ success: true, data: results });
+  });
+});
+
+// Get all scanned items
+app.get("/item-scanned/:id", (req, res) => {
+  const { id } = req.params;
+
+  const sql = `
+    SELECT
+      COALESCE(par.property_id, ics.inventory_id) itemIds,
+      ppe_entries.form_id, 
+      ppe_entries.description,
+      ppe_entries.quantity
+    FROM 
+      ppe_entries 
+    LEFT JOIN 
+      par ON par.PAR_id = ppe_entries.form_id 
+    LEFT JOIN 
+      ics ON ics.ICS_id = ppe_entries.form_id 
+    WHERE 
+      COALESCE(par.property_id, ics.inventory_id) = ?
+  `;
+
+  db.query(sql, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching PPE entry:", err);
+      return res.status(500).json({ success: false, message: "Database error." });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ success: false, message: "No PPE entry found." });
+    }
+
+    // Safely construct the response
+    res.json({
+      success: true,
+      data: {
+        itemIds: results[0].itemIds,
+        form_id: results[0].form_id,
+        description: results[0].description,
+        quantity: results[0].quantity
+      },
+    });
   });
 });
 
@@ -578,6 +621,19 @@ app.get("/getItem/:id", (req, res) => {
       ppe_entries.item_id;
 
   `;
+
+  app.post("/forgot-password", (req, res) => {
+    const { email } = req.body;
+  
+    // Validate email and send reset link
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required." });
+    }
+  
+    // Simulate sending a reset link
+    console.log(`Password reset link sent to ${email}`);
+    res.json({ success: true, message: "Password reset link sent." });
+  });
 
   // Execute the query
   db.query(query, [itemId], (err, results) => {
