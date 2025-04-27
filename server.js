@@ -418,7 +418,7 @@ app.get("/item-scanned/:id", (req, res) => {
     }
 
     if (results.length === 0) {
-      return res.status(404).json({ success: false, message: "No PPE entry found." });
+      return res.json({ success: false, message: "No PPE entry found." });
     }
 
     // Safely construct the response
@@ -433,6 +433,80 @@ app.get("/item-scanned/:id", (req, res) => {
     });
   });
 });
+
+app.get("/item-check", (req, res) => {
+  const sql = "SELECT item_id FROM inspection_table";
+  
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching PPE entries:", err);
+      return res.status(500).json({ success: false, message: "Database error" });
+    }
+
+    if (results.length === 0) {
+      res.json({ success: false, message: "No data found." });
+    }
+
+    else{
+      // Extract all item_id values into an array
+      const itemIds = results.map(row => row.item_id);
+
+      // Step 2: Use the item_id values to fetch matching data from another table
+      const sql2 = `SELECT
+          COALESCE(par.property_id, ics.inventory_id) itemIds,
+          ppe_entries.form_id, 
+          ppe_entries.description,
+          ppe_entries.quantity
+        FROM 
+          ppe_entries 
+        LEFT JOIN 
+          par ON par.PAR_id = ppe_entries.form_id 
+        LEFT JOIN 
+          ics ON ics.ICS_id = ppe_entries.form_id 
+        WHERE 
+          COALESCE(par.property_id, ics.inventory_id) = ?
+      `;
+
+      db.query(sql2, [itemIds], (err2, results2) => {
+        if (err2) {
+          console.error("Error fetching matching data:", err2);
+          return res.status(500).json({ success: false, message: "Database error while fetching matching data." });
+        }
+
+        if (results2.length === 0) {
+          return res.json({ success: false, message: "No matching data found in the other table." });
+        }
+
+        res.json({
+          success: true,
+          data: {
+            itemIds: results2[0].itemIds,
+            form_id: results2[0].form_id,
+            description: results2[0].description,
+            quantity: results2[0].quantity
+          },
+        });
+      });
+    }
+  });
+});
+
+// Save to Backup
+app.post("/ppe-entries-backup/:ids", (req, res) => {
+  const entriesToBackup = req.body;
+
+  if (!Array.isArray(entriesToBackup) || entriesToBackup.length === 0) {
+    return res.status(400).json({ success: false, message: "No entries provided." });
+  }
+
+
+  const values = entriesToBackup.map(item => [
+    item.itemIds || null, // Replace with actual data if available
+    item.status || null   // Replace with actual data if available
+  ]);
+
+  console.log(values.itemIds);
+})
 
 // Get item search
 app.get("/item-search/:proInvenID", (req, res) => {
