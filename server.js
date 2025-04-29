@@ -435,7 +435,8 @@ app.get("/item-scanned/:id", (req, res) => {
 });
 
 app.get("/item-check", (req, res) => {
-  const sql = "SELECT item_id FROM inspection_table";
+  console.log("Fetching PPE entries...");
+  const sql = "SELECT item_id FROM backupinspection";
   
   db.query(sql, (err, results) => {
     if (err) {
@@ -444,7 +445,8 @@ app.get("/item-check", (req, res) => {
     }
 
     if (results.length === 0) {
-      res.json({ success: false, message: "No data found." });
+      console.log("No PPE entries found.");
+      // res.json({ success: false, message: "No data found." });
     }
 
     else{
@@ -456,56 +458,87 @@ app.get("/item-check", (req, res) => {
           COALESCE(par.property_id, ics.inventory_id) itemIds,
           ppe_entries.form_id, 
           ppe_entries.description,
-          ppe_entries.quantity
+          ppe_entries.quantity,
+          backupinspection.status
         FROM 
           ppe_entries 
         LEFT JOIN 
           par ON par.PAR_id = ppe_entries.form_id 
         LEFT JOIN 
           ics ON ics.ICS_id = ppe_entries.form_id 
+        LEFT JOIN
+          backupinspection ON backupinspection.item_id = COALESCE(ics.inventory_id, par.property_id)
         WHERE 
           COALESCE(par.property_id, ics.inventory_id) = ?
       `;
 
-      db.query(sql2, [itemIds], (err2, results2) => {
-        if (err2) {
-          console.error("Error fetching matching data:", err2);
-          return res.status(500).json({ success: false, message: "Database error while fetching matching data." });
-        }
+      const resultsArray = []; // To store results for each item_id
+      for (const itemId of itemIds) {
+        db.query(sql2, [itemId], (err2, results2) => {
+          if (err2) {
+            console.error(`Error fetching matching data for item_id ${itemId}:`, err2);
+            return res.status(500).json({ success: false, message: "Database error while fetching matching data." });
+          }
 
-        if (results2.length === 0) {
-          return res.json({ success: false, message: "No matching data found in the other table." });
-        }
+          if (results2.length === 0) {
+            console.log(`No matching data found for item_id ${itemId}`);
+          } else {
+            // Add the result to the resultsArray
+            resultsArray.push({
+              itemIds: results2[0].itemIds,
+              form_id: results2[0].form_id,
+              description: results2[0].description,
+              quantity: results2[0].quantity,
+              status: results2[0].status
+            });
+          }
 
-        res.json({
-          success: true,
-          data: {
-            itemIds: results2[0].itemIds,
-            form_id: results2[0].form_id,
-            description: results2[0].description,
-            quantity: results2[0].quantity
-          },
+          // Check if all queries are completed
+          if (resultsArray.length === itemIds.length) {
+            // Send the accumulated results as a response
+            res.json({ success: true, data: resultsArray });
+          }
         });
-      });
+      }
     }
   });
 });
 
 // Save to Backup
-app.post("/ppe-entries-backup/:ids", (req, res) => {
-  const entriesToBackup = req.body;
+app.get("/ppe-entries-backup/:ids/:date/:time/:staat/", (req, res) => {
+  const { ids, date, time, staat } = req.params;
 
-  if (!Array.isArray(entriesToBackup) || entriesToBackup.length === 0) {
-    return res.status(400).json({ success: false, message: "No entries provided." });
-  }
+  const sql1 = `SELECT * FROM backupinspection WHERE item_id = ?`;
+
+  db.query(sql1, [ids], (err2, results2) => {
+    if (err2) {
+      console.error("Error fetching matching data:", err2);
+      return res.status(500).json({ success: false, message: "Database error while fetching matching data." });
+    }
+
+    if (results2.length === 0) {
+      const sql2 = `INSERT INTO backupinspection (item_id, date, time, status) VALUES (?, ?, ?, ?)`;
+
+      db.query(sql2, [ids, date, time, staat], (err3, results3) => {
+        if (err3) {
+          console.error("Error inserting data into backupinspection:", err3);
+          return res.status(500).json({ success: false, message: "Database error while inserting data." });
+        }
+      });
+    }
+    else{
+      const sql3 = `UPDATE backupinspection SET status = ? WHERE item_id = ?`;
+
+      db.query(sql3, [staat, ids], (err4, results4) => {
+        if (err4) {
+          console.error("Error inserting data into backupinspection:", err4);
+          return res.status(500).json({ success: false, message: "Database error while inserting data." });
+        }
+      });
+    }
 
 
-  const values = entriesToBackup.map(item => [
-    item.itemIds || null, // Replace with actual data if available
-    item.status || null   // Replace with actual data if available
-  ]);
-
-  console.log(values.itemIds);
+  })
 })
 
 // Get item search
